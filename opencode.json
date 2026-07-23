@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "groq": {
+      "models": {
+        "moonshotai/kimi-k2-instruct-0905": {
+          "name": "Kimi K2 Instruct 0905 (Groq)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        },
+        "moonshotai/kimi-k2-instruct": {
+          "name": "Kimi K2 Instruct (Groq)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        },
+        "minimaxai/minimax-m2.5": {
+          "name": "MiniMax M2.5 (Groq)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        },
+        "minimaxai/minimax-m2.7": {
+          "name": "MiniMax M2.7 (Groq)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        },
+        "qwen/qwen3.6-27b": {
+          "name": "Qwen 3.6 27B (Groq)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        }
+      }
+    }
+  }
+}
