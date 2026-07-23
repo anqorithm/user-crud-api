@@ -30,152 +30,175 @@ A production-ready FastAPI application with PostgreSQL, Redis, JWT authenticatio
 
 ```mermaid
 flowchart TB
-    subgraph Clients
-        A[🌐 Web Browser]
-        B[📱 Mobile App]
-        C[⌨️ CLI Tools]
-        D[🔧 Other APIs]
-        E[📖 Swagger UI]
+    subgraph Clients["Internet Clients"]
+        Browser["Web Browser"]
+        MobileApp["Mobile App"]
+        ApiClients["API Clients"]
     end
 
-    subgraph FastAPI_Application
-        subgraph API_Layer
-            F[Auth Router<br/>/auth/*]
-            G[Users Router<br/>/users/*]
-            H[Tasks Router<br/>/tasks/*]
-            I[Files Router<br/>/uploads/*]
-        end
-
-        subgraph Service_Layer
-            F1[AuthService<br/>Register/Login/JWT]
-            G1[UserService<br/>CRUD/Search/Page]
-            H1[TaskService<br/>CRUD/Filter]
-            I1[FileService<br/>Upload/Download]
-        end
-
-        subgraph Repository_Layer
-            J[BaseRepository<br/>get/create/update/delete]
-        end
-
-        F --> F1
-        G --> G1
-        H --> H1
-        I --> I1
-        F1 --> J
-        G1 --> J
-        H1 --> J
-        I1 --> J
+    subgraph Gateway["API Gateway"]
+        TLS["TLS Termination"]
     end
 
-    subgraph Data_Layer
-        K[(PostgreSQL<br/>Users, Tasks, Logs)]
-        L[(Redis<br/>Cache, Sessions)]
-        M[(Celery<br/>Task Queue)]
+    subgraph FastAPI["FastAPI Application"]
+        MW["Middleware<br/>CORS, Rate Limit<br/>Request ID, Logging"]
+        
+        subgraph Routes["API Routes"]
+            Auth["/auth/*"]
+            Users["/users/*"]
+            Tasks["/tasks/*"]
+            Files["/uploads/*"]
+            WS["/ws/*"]
+        end
+        
+        subgraph Services["Services"]
+            AuthS["AuthService"]
+            UserS["UserService"]
+            TaskS["TaskService"]
+            FileS["FileService"]
+        end
+        
+        MW --> Routes --> Services
+        Services --> Repo["Repository"]
+        Services --> Cache["Cache"]
     end
 
-    Clients --> FastAPI_Application
-    J --> K
-    J --> L
-    M --> L
+    subgraph DataStore["Data Stores"]
+        PG[("PostgreSQL")]
+        RD[("Redis")]
+        CB[("Celery")]
+    end
+
+    Clients --> TLS --> MW
+    Repo --> PG
+    Cache --> RD
+    CB -.-> RD
 ```
 
 ### Request Flow
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant C as Client
-    participant M as Middleware
-    participant R as Router
-    participant S as Service
-    participant DB as PostgreSQL
+    participant API as FastAPI
+    participant MW as Middleware
+    participant Svc as Services
+    participant Repo as Repository
+    participant PG as PostgreSQL
     participant Cache as Redis
 
-    C->>M: POST /api/v1/auth/register
-    M->>M: CORS → Request ID → Rate Limit → Log
-    M->>R: Request with dependencies
-    R->>S: register(session, cache, user_data)
-    S->>S: Hash password with bcrypt
-    S->>DB: INSERT User
-    DB-->>S: User created
-    S->>S: Generate JWT token
-    S->>Cache: Invalidate users:list:*
-    Cache-->>S: Cache invalidated
-    S-->>R: return Token
-    R-->>M: Response
-    M-->>C: HTTP 201 + X-Request-ID
+    C->>API: POST /api/v1/auth/register
+    Note over MW: CORS → Rate Limit → Request ID → Logging
+
+    API->>MW: Validate Request
+    MW->>Svc: user_data + session
+    Svc->>Repo: Hash password
+
+    Repo->>PG: INSERT user
+    PG-->>Repo: user created
+    Repo-->>Svc: user object
+
+    Svc->>Cache: invalidate("users:list:*")
+    Cache-->>Svc: OK
+
+    Svc->>API: Token response
+    API-->>C: 201 Created + JWT token
+
+    Note over C: Use token for protected routes
+
+    C->>API: GET /api/v1/users
+    API->>MW: Validate Bearer Token
+    MW->>Svc: token + session
+    Svc->>Cache: get("users:list:1:100")
+    
+    alt Cache Hit
+        Cache-->>Svc: cached data
+    else Cache Miss
+        Svc->>Repo: fetch users
+        Repo->>PG: SELECT users
+        PG-->>Repo: user list
+        Repo-->>Svc: user list
+        Svc->>Cache: setex("users:list:1:100", ttl)
+    end
+
+    Svc-->>API: paginated response
+    API-->>C: 200 OK
 ```
 
-### Data Model (ERD)
+### Database Schema
 
 ```mermaid
 erDiagram
     USERS {
-        string id PK ""
-        string name ""
-        string email UK ""
-        int age ""
-        bool is_active ""
-        bool is_superuser ""
-        string hashed_password ""
-        datetime created_at ""
-        datetime updated_at ""
+        uuid id PK "Primary Key"
+        string name "Required"
+        string email UK "Unique"
+        int age "Optional"
+        bool is_active "Default: true"
+        bool is_superuser "Default: false"
+        string hashed_password "Required"
+        timestamp created_at "Auto"
+        timestamp updated_at "Auto"
     }
 
     TASKS {
-        string id PK ""
-        string title ""
-        string description ""
-        int priority ""
-        bool completed ""
-        string user_id FK ""
-        datetime created_at ""
-        datetime updated_at ""
+        uuid id PK "Primary Key"
+        string title "Required"
+        string description "Optional"
+        int priority "1-5, Default: 1"
+        bool completed "Default: false"
+        uuid user_id FK "References Users"
+        timestamp created_at "Auto"
+        timestamp updated_at "Auto"
     }
 
-    USERS ||--o{ TASKS : "has"
+    USERS ||--o{ TASKS : "creates"
 ```
 
 ### Caching Strategy
 
 ```mermaid
 flowchart LR
-    A[GET /users] --> B{Cache Hit?}
-    B -->|Yes| C[Return cached data]
-    B -->|No| D[Query PostgreSQL]
-    D --> E[Store in Redis]
-    E --> C
-    F[POST /users] --> G[Write to PostgreSQL]
-    G --> H[Invalidate cache]
+    subgraph ReadOps["Read Operations"]
+        A["GET /users<br/>/tasks/{id}"] --> B{Redis Cache}
+        B -->|HIT| C["Return Cached"]
+        B -->|MISS| D["Query PostgreSQL"]
+        D --> E["Store in Redis<br/>TTL: 300s"]
+        E --> C
+    end
+
+    subgraph WriteOps["Write Operations"]
+        F["POST/PATCH/DELETE"] --> G["Write to PostgreSQL"]
+        G --> H["Invalidate Cache"]
+        H --> I["Return Response"]
+    end
 ```
 
-### Docker Compose Architecture
+### Docker Architecture
 
 ```mermaid
-flowchart TB
-    A["API Service<br/>FastAPI :8000"]
-    B["PostgreSQL<br/>:5432"]
-    C["Redis<br/>:6379"]
-    D[Browser]
-    E[curl/Postman]
-    F[Mobile App]
+graph TB
+    subgraph Compose["Docker Compose"]
+        subgraph Services["Services"]
+            API["FastAPI<br/>:8000"]
+            PG["PostgreSQL<br/>:5432"]
+            RD["Redis<br/>:6379"]
+        end
+        
+        API --> PG
+        API --> RD
+    end
 
-    D --> A
-    E --> A
-    F --> A
-    A <--> B
-    A <--> C
-```
+    subgraph Clients["Clients"]
+        Browser["Browser<br/>/docs"]
+        Mobile["Mobile App"]
+        Client["API Clients"]
+    end
 
-### API Versioning
-
-```mermaid
-flowchart LR
-    V1["v1.0.0<br/>/api/v1"]
-    V2["v2.0.0<br/>/api/v2"]
-    V3["v3.0.0<br/>/api/v3"]
-
-    V1 -->|deprecated| Old[Old Version]
-    V2 -->|deprecated| Old
+    Browser --> API
+    Mobile --> API
+    Client --> API
 ```
 
 ## Quick Start
@@ -190,7 +213,7 @@ flowchart LR
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/anqorithm/user-crud-api
 cd user-crud-api
 
 # Install dependencies with uv
@@ -216,9 +239,6 @@ docker compose up --build
 
 # Stop all services
 docker compose down
-
-# Rebuild without cache
-docker compose build --no-cache
 ```
 
 ## Project Structure
@@ -241,7 +261,7 @@ app/
 ├── repositories.py         # Repository pattern
 ├── api/v1/                 # API version 1
 │   ├── router.py          # Main router
-│   └── endpoints/         # API endpoints
+│   └── routes/            # API endpoints
 │       ├── auth.py       # Authentication
 │       ├── users.py      # User management
 │       ├── tasks.py      # Task management
@@ -292,13 +312,6 @@ SMTP_PORT=587
 SMTP_USER=
 SMTP_PASSWORD=
 SMTP_FROM=noreply@example.com
-
-# Celery (optional)
-CELERY_BROKER_URL=redis://redis:6379/1
-CELERY_RESULT_BACKEND=redis://redis:6379/2
-
-# Sentry (optional)
-SENTRY_DSN=
 ```
 
 ## API Endpoints
@@ -309,7 +322,6 @@ SENTRY_DSN=
 |--------|----------|-------------|
 | `POST` | `/api/v1/auth/register` | Register new user |
 | `POST` | `/api/v1/auth/login` | Login and get tokens |
-| `POST` | `/api/v1/auth/refresh` | Refresh access token |
 
 ### Users
 
@@ -352,89 +364,6 @@ SENTRY_DSN=
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Health check |
-| `GET` | `/metrics` | Application metrics |
-
-## Authentication
-
-### Register
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "securepassword123",
-    "age": 30
-  }'
-```
-
-### Login
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john@example.com&password=securepassword123"
-```
-
-### Using the Token
-
-```bash
-curl http://localhost:8000/api/v1/users/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-## Pagination
-
-### Query Parameters
-
-```
-GET /api/v1/users?page=1&page_size=10
-GET /api/v1/tasks?page=2&page_size=20&completed=true&priority=3
-```
-
-### Response Format
-
-```json
-{
-  "items": [...],
-  "total": 100,
-  "page": 1,
-  "page_size": 10,
-  "pages": 10,
-  "has_next": true,
-  "has_prev": false
-}
-```
-
-## Caching
-
-Redis caching is enabled by default with a 5-minute TTL:
-
-- User lists: `users:list:{page}:{page_size}`
-- Individual users: `users:{user_id}`
-- Task lists: `tasks:list:{page}:{page_size}:{filters}`
-
-Cache is automatically invalidated on create, update, or delete operations.
-
-## Background Tasks
-
-Tasks are processed by Celery:
-
-```python
-from app.services.celery_app import celery_app
-
-@celery_app.task(name="send_email")
-def send_email_task(to: str, subject: str, body: str):
-    # Send email asynchronously
-    pass
-```
-
-Start the Celery worker:
-
-```bash
-celery -A app.services.celery_app worker --loglevel=info
-```
 
 ## Testing
 
@@ -444,89 +373,12 @@ uv run pytest
 
 # Run with coverage
 uv run pytest --cov=app --cov-report=html
-
-# Run specific test file
-uv run pytest app/tests/unit/test_api.py
-
-# Run with verbose output
-uv run pytest -v
 ```
-
-## Development
-
-### Code Quality
-
-```bash
-# Format code
-uv run ruff format .
-
-# Lint code
-uv run ruff check .
-
-# Type checking
-uv run mypy app/
-```
-
-### Database Migrations
-
-```bash
-# Create migration
-alembic revision --autogenerate -m "add users table"
-
-# Apply migrations
-alembic upgrade head
-```
-
-## Docker Services
-
-| Service | Port | Description |
-|---------|------|-------------|
-| `api` | 8000 | FastAPI application |
-| `postgres` | 5432 | PostgreSQL database |
-| `redis` | 6379 | Redis cache |
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | User CRUD API | Application name |
-| `DATABASE_URL` | postgresql+asyncpg://... | Database connection URL |
-| `REDIS_URL` | redis://redis:6379 | Redis connection URL |
-| `JWT_SECRET_KEY` | (required) | Secret for JWT signing |
-| `CACHE_TTL` | 300 | Cache TTL in seconds |
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License.
-
-## Support
-
-- Documentation: `/docs`
-- Issues: GitHub Issues
-- Email: support@example.com
-
-## Changelog
-
-### v1.0.0 (2026-07-23)
-
-- Initial release
-- User CRUD with PostgreSQL
-- JWT Authentication
-- Redis caching
-- Task management
-- File uploads
-- WebSocket support
-- Background tasks with Celery
-- Docker Compose setup
+MIT License - see LICENSE file for details.
 
 ---
 
-**Built with FastAPI, PostgreSQL, Redis, and ❤️**
+**Built with FastAPI, PostgreSQL, Redis**
