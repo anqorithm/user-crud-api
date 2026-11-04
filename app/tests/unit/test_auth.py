@@ -17,7 +17,7 @@ class TestJWTAuthentication:
         assert decoded["sub"] == "user123"
 
     def test_invalid_token_raises_exception(self):
-        from app.core.security import decode_token
         from app.core.exceptions import UnauthorizedException
+        from app.core.security import decode_token
         with pytest.raises(UnauthorizedException):
             decode_token("invalid")

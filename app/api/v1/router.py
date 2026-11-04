@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.routes import auth_router, users_router, tasks_router, files_router
+
+from app.api.v1.routes import auth_router, files_router, tasks_router, users_router
 from app.api.v1.routes.websocket import ws_endpoint
 
 api_router = APIRouter(prefix="/api/v1")

@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional, List, Generic, TypeVar
-from pydantic import BaseModel, Field
+from typing import Generic, TypeVar
 
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
@@ -9,7 +9,7 @@ T = TypeVar("T")
 class UserBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=1, max_length=255)
-    age: Optional[int] = Field(default=None, ge=0)
+    age: int | None = Field(default=None, ge=0)
     is_active: bool = True
     is_superuser: bool = False
 
@@ -17,48 +17,48 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=1, max_length=255)
-    age: Optional[int] = Field(default=None, ge=0)
+    age: int | None = Field(default=None, ge=0)
     password: str = Field(min_length=8, max_length=100)
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    email: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    age: Optional[int] = Field(default=None, ge=0)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    email: str | None = Field(default=None, min_length=1, max_length=255)
+    age: int | None = Field(default=None, ge=0)
 
 
 class UserRead(UserBase):
     id: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=1000)
+    description: str | None = Field(default=None, max_length=1000)
     priority: int = Field(default=1, ge=1, le=5)
     completed: bool = False
 
 
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=1000)
+    description: str | None = Field(default=None, max_length=1000)
     priority: int = Field(default=1, ge=1, le=5)
     completed: bool = False
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=1000)
-    priority: Optional[int] = Field(default=None, ge=1, le=5)
-    completed: Optional[bool] = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    priority: int | None = Field(default=None, ge=1, le=5)
+    completed: bool | None = None
 
 
 class TaskRead(TaskBase):
     id: str
     user_id: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class Token(BaseModel):
@@ -67,8 +67,8 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    sub: Optional[str] = None
-    email: Optional[str] = None
+    sub: str | None = None
+    email: str | None = None
 
 
 class RefreshToken(BaseModel):
@@ -81,7 +81,7 @@ class LoginRequest(BaseModel):
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
-    items: List[T]
+    items: list[T]
     total: int
     page: int
     page_size: int
@@ -91,22 +91,22 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 
 class CursorPaginatedResponse(BaseModel, Generic[T]):
-    items: List[T]
-    next_cursor: Optional[str] = None
+    items: list[T]
+    next_cursor: str | None = None
     has_more: bool
 
 
 class ApiResponse(BaseModel):
     success: bool = True
     message: str = "Operation successful"
-    data: Optional[dict] = None
+    data: dict | None = None
 
 
 class ErrorResponse(BaseModel):
     success: bool = False
     error: str
-    detail: Optional[str] = None
-    code: Optional[str] = None
+    detail: str | None = None
+    code: str | None = None
 
 
 class HealthCheck(BaseModel):

@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from app.repositories import BaseRepository, UserRepo
 
 
@@ -29,7 +27,6 @@ class TestUserRepo:
         assert UserRepo is not None
 
     def test_user_repo_type_is_repository(self):
-        from app.models.user_task import User
         assert UserRepo is not None
 
 

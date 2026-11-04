@@ -1,12 +1,21 @@
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
+
 from app.schemas import (
-    UserCreate, UserUpdate, UserRead,
-    TaskCreate, TaskUpdate, TaskRead,
-    Token, PaginatedResponse, ErrorResponse,
-    LoginRequest, ApiResponse
+    ApiResponse,
+    ErrorResponse,
+    LoginRequest,
+    PaginatedResponse,
+    TaskCreate,
+    TaskRead,
+    TaskUpdate,
+    Token,
+    UserCreate,
+    UserRead,
+    UserUpdate,
 )
-from datetime import datetime
 
 
 class TestUserSchemas:

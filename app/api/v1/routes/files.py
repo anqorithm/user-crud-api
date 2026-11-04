@@ -1,11 +1,12 @@
 """
 File Upload Endpoints
 """
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
-from fastapi.responses import FileResponse
-import aiofiles
 import uuid
 from pathlib import Path
+
+import aiofiles
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.security import CurrentUser
@@ -17,11 +18,11 @@ MAX_FILE_SIZE = settings.max_upload_size_mb * 1024 * 1024
 
 
 @router.post("")
-async def upload_file(file: UploadFile = File(...), current_user: CurrentUser = None):
+async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"File too large. Max: {settings.max_upload_size_mb}MB")
 
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Allowed: {ALLOWED_EXTENSIONS}")
 
@@ -46,7 +47,7 @@ async def get_file(filename: str):
 
 
 @router.delete("/{filename}")
-async def delete_file(filename: str, current_user: CurrentUser = None):
+async def delete_file(filename: str, current_user: CurrentUser):
     file_path = Path("/tmp/uploads") / filename
     if file_path.exists():
         file_path.unlink()

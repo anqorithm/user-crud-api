@@ -1,4 +1,5 @@
 import redis.asyncio as redis
+
 from app.core.config import settings
 
 redis_client: redis.Redis | None = None
@@ -21,6 +22,7 @@ async def close_redis():
 async def get_redis() -> redis.Redis:
     if redis_client is None:
         await init_redis()
+    assert redis_client is not None
     return redis_client
 
 

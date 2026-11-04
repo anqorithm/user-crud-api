@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import async_session
@@ -39,7 +39,5 @@ async def get_uow() -> AsyncGenerator[UnitOfWork, None]:
         yield uow
 
 
-from app.repositories import UserRepo
-from app.models.user_task import User
 
 UserUnitOfWork = UnitOfWork

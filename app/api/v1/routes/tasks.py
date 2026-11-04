@@ -3,15 +3,16 @@ Task Management Endpoints
 """
 import json
 import math
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func
+from sqlmodel import col, func, select
 
-from app.schemas import TaskCreate, TaskRead, TaskUpdate, PaginatedResponse
-from app.models import Task
-from app.db import get_session, get_redis
-from app.core.exceptions import NotFoundException
 from app.core.config import settings
+from app.core.exceptions import NotFoundException
+from app.db import get_redis, get_session
+from app.models import Task
+from app.schemas import PaginatedResponse, TaskCreate, TaskRead, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -41,11 +42,11 @@ async def list_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    query = query.offset(offset).limit(page_size).order_by(Task.created_at.desc())
+    query = query.offset(offset).limit(page_size).order_by(col(Task.created_at).desc())
     result = await session.execute(query)
     tasks = result.scalars().all()
 
-    count_result = await session.execute(select(func.count(Task.id)))
+    count_result = await session.execute(select(func.count(col(Task.id))))
     total = count_result.scalar() or 0
 
     response = PaginatedResponse(

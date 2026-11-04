@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+
 from celery import Celery
 
 from app.core.config import settings
@@ -33,8 +33,9 @@ def send_email_task(to: str, subject: str, body: str):
 
 @celery_app.task(name="cleanup_expired_cache")
 def cleanup_expired_cache_task():
-    import redis.asyncio as redis
     import asyncio
+
+    import redis.asyncio as redis
 
     async def cleanup():
         client = redis.from_url(settings.redis_url, decode_responses=True)
@@ -42,9 +43,9 @@ def cleanup_expired_cache_task():
         if keys:
             await client.delete(*keys)
         await client.close()
+        return len(keys)
 
-    asyncio.run(cleanup())
-    return {"cleaned": len(keys)}
+    return {"cleaned": asyncio.run(cleanup())}
 
 
 @celery_app.task(name="generate_report")

@@ -2,6 +2,7 @@
 OpenAPI Configuration for Swagger Documentation
 """
 from fastapi import FastAPI
+
 from app.core.config import settings
 
 TAGS_METADATA = [
@@ -42,5 +43,5 @@ def setup_openapi(app: FastAPI):
 
 Use `Authorization: Bearer <token>` header for protected routes.
 """
-    app.tags_metadata = TAGS_METADATA
+    app.openapi_tags = TAGS_METADATA
     return app

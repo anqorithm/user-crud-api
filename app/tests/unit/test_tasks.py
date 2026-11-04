@@ -1,8 +1,8 @@
+
 import pytest
-import sys
 
 try:
-    from celery import Celery
+    import celery  # noqa: F401
     CELERY_AVAILABLE = True
 except ImportError:
     CELERY_AVAILABLE = False
@@ -36,3 +36,17 @@ class TestCeleryTasks:
         from app.services.celery_app import celery_app
         assert celery_app.conf.broker_url is not None
         assert celery_app.conf.result_backend is not None
+
+    def test_cleanup_expired_cache_task_returns_count(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.services.celery_app import cleanup_expired_cache_task
+
+        async def scan_iter(match):
+            for key in ["expired:a", "expired:b"]:
+                yield key
+
+        client = MagicMock(scan_iter=scan_iter, delete=AsyncMock(), close=AsyncMock())
+        with patch("redis.asyncio.from_url", return_value=client):
+            assert cleanup_expired_cache_task() == {"cleaned": 2}
+        client.delete.assert_awaited_once_with("expired:a", "expired:b")

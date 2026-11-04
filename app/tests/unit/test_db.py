@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from app.db.session import engine, async_session, get_session
+from app.db.session import async_session, engine, get_session
 
 
 class TestDatabaseSession:

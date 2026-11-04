@@ -2,7 +2,6 @@
 WebSocket Endpoints
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.core.logging import log
 
 router = APIRouter(tags=["WebSocket"])
 

@@ -1,14 +1,14 @@
 """
 User Management Endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
-from app.schemas import UserRead, UserCreate
-from app.models import User
-from app.db import get_session
 from app.core.security import hash_password
+from app.db import get_session
+from app.models import User
+from app.schemas import UserCreate, UserRead
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -19,7 +19,7 @@ async def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
 ) -> list[UserRead]:
-    result = await session.execute(select(User).offset(skip).limit(limit).order_by(User.created_at.desc()))
+    result = await session.execute(select(User).offset(skip).limit(limit).order_by(col(User.created_at).desc()))
     users = result.scalars().all()
     return [UserRead(**u.model_dump()) for u in users]
 

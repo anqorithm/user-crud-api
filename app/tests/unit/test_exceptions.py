@@ -1,12 +1,12 @@
-import pytest
+from fastapi import HTTPException
+
 from app.core.exceptions import (
     AppException,
-    NotFoundException,
     ConflictException,
+    ForbiddenException,
+    NotFoundException,
     UnauthorizedException,
-    ForbiddenException
 )
-from fastapi import HTTPException
 
 
 class TestCustomExceptions:
