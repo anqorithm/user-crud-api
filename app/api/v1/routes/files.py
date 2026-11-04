@@ -15,6 +15,15 @@ router = APIRouter(prefix="/uploads", tags=["Files"])
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".pdf", ".docx", ".xlsx"}
 MAX_FILE_SIZE = settings.max_upload_size_mb * 1024 * 1024
+UPLOAD_DIR = Path("/tmp/uploads")
+
+
+def upload_path(filename: str) -> Path:
+    # Reject names like ".." that resolve outside the upload dir.
+    path = (UPLOAD_DIR / filename).resolve()
+    if path.parent != UPLOAD_DIR.resolve() or not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    return path
 
 
 @router.post("")
@@ -28,11 +37,10 @@ async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
 
     file_id = str(uuid.uuid4())
     filename = f"{file_id}{ext}"
-    upload_dir = Path("/tmp/uploads")
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     content = await file.read()
-    async with aiofiles.open(upload_dir / filename, "wb") as f:
+    async with aiofiles.open(UPLOAD_DIR / filename, "wb") as f:
         await f.write(content)
 
     return {"filename": filename, "original_filename": file.filename, "size": len(content), "url": f"/uploads/{filename}"}
@@ -40,16 +48,10 @@ async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
 
 @router.get("/{filename}")
 async def get_file(filename: str):
-    file_path = Path("/tmp/uploads") / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-    return FileResponse(path=file_path, filename=filename)
+    return FileResponse(path=upload_path(filename), filename=filename)
 
 
 @router.delete("/{filename}")
 async def delete_file(filename: str, current_user: CurrentUser):
-    file_path = Path("/tmp/uploads") / filename
-    if file_path.exists():
-        file_path.unlink()
-        return {"message": "File deleted"}
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    upload_path(filename).unlink()
+    return {"message": "File deleted"}

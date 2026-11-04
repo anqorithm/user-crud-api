@@ -42,11 +42,12 @@ async def list_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
+    count_query = select(func.count()).select_from(query.subquery())
     query = query.offset(offset).limit(page_size).order_by(col(Task.created_at).desc())
     result = await session.execute(query)
     tasks = result.scalars().all()
 
-    count_result = await session.execute(select(func.count(col(Task.id))))
+    count_result = await session.execute(count_query)
     total = count_result.scalar() or 0
 
     response = PaginatedResponse(
