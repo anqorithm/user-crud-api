@@ -1,5 +1,4 @@
-import pytest
-from app.core.middleware import RequestIDMiddleware, RateLimitMiddleware
+from app.core.middleware import RateLimitMiddleware, RequestIDMiddleware
 
 
 class TestRequestIDMiddlewareDetails:

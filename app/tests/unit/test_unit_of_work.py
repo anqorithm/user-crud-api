@@ -1,4 +1,3 @@
-import pytest
 from app.services.unit_of_work import UnitOfWork
 
 

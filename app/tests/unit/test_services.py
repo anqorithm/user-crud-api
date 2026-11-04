@@ -1,6 +1,5 @@
-import pytest
-from app.services.email import send_email, send_welcome_email, send_password_reset_email
 from app.core.config import settings
+from app.services.email import send_email, send_password_reset_email, send_welcome_email
 
 
 class TestEmailService:

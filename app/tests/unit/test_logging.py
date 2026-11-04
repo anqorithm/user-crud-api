@@ -1,5 +1,4 @@
-import pytest
-from app.core.logging import setup_logging, log
+from app.core.logging import log, setup_logging
 
 
 class TestLogging:

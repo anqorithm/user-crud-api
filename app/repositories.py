@@ -1,20 +1,21 @@
+from typing import Generic, TypeVar
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, TypeVar, Type, Generic
 from sqlmodel import select
 
 T = TypeVar("T")
 
 
 class BaseRepository(Generic[T]):
-    def __init__(self, session: AsyncSession, model: Type[T]):
+    def __init__(self, session: AsyncSession, model: type[T]):
         self.session = session
         self.model = model
 
-    async def get(self, id: str) -> Optional[T]:
+    async def get(self, id: str) -> T | None:
         return await self.session.get(self.model, id)
 
-    async def get_by_email(self, email: str) -> Optional[T]:
-        result = await self.session.execute(select(self.model).where(self.model.email == email))
+    async def get_by_email(self, email: str) -> T | None:
+        result = await self.session.execute(select(self.model).where(self.model.email == email))  # type: ignore[attr-defined]
         return result.scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> list[T]:
@@ -45,6 +46,6 @@ class BaseRepository(Generic[T]):
         return len(list(result.scalars().all()))
 
 
-from app.models.user_task import User
+from app.models.user_task import User  # noqa: E402
 
 UserRepo = BaseRepository[User]

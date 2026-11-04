@@ -1,20 +1,21 @@
 """
 FastAPI Application Entry Point
 """
-from contextlib import asynccontextmanager
 import time
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 
-from app.core.config import settings
-from app.core.logging import log
-from app.core.middleware import RequestIDMiddleware, RateLimitMiddleware
-from app.core.exceptions import NotFoundException
-from app.core.openapi import setup_openapi
-from app.db import init_db, close_db, init_redis, close_redis
 from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.exceptions import NotFoundException
+from app.core.logging import log
+from app.core.middleware import RateLimitMiddleware, RequestIDMiddleware
+from app.core.openapi import setup_openapi
+from app.db import close_db, close_redis, init_db, init_redis
 
 start_time = time.time()
 

@@ -1,10 +1,11 @@
 import time
 import uuid
-import logging
 from contextvars import ContextVar
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
 from app.core.logging import log
 
 request_id_ctx_var: ContextVar[str] = ContextVar("request_id", default="")
