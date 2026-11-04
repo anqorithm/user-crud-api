@@ -50,3 +50,20 @@ class TestCeleryTasks:
         with patch("redis.asyncio.from_url", return_value=client):
             assert cleanup_expired_cache_task() == {"cleaned": 2}
         client.delete.assert_awaited_once_with("expired:a", "expired:b")
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_total_respects_filters():
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.api.v1.routes.tasks import list_tasks
+
+    rows = MagicMock()
+    rows.scalars.return_value.all.return_value = []
+    count = MagicMock(scalar=MagicMock(return_value=3))
+    session = MagicMock(execute=AsyncMock(side_effect=[rows, count]))
+    cache = MagicMock(get=AsyncMock(return_value=None), setex=AsyncMock(), set=AsyncMock())
+    resp = await list_tasks(session=session, cache=cache, page=1, page_size=10, completed=True, priority=None)
+    assert resp.total == 3
+    count_sql = str(session.execute.await_args_list[1].args[0])
+    assert "completed" in count_sql
